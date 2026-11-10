@@ -1,0 +1,21 @@
+schema_version = "1.0.0"
+
+id = "semantic_uv_organizer"
+version = "0.1.0"
+name = "Semantic UV Organizer"
+tagline = "Rule-based UV unwrapping and readable layout without ML"
+maintainer = "tateshinachikuma"
+type = "add-on"
+
+blender_version_min = "4.2.0"
+
+license = ["SPDX:GPL-3.0-or-later"]
+tags = ["UV", "Mesh"]
+
+# ネットワーク・ファイルシステム外部アクセスなし。外部 AI / 学習済み重みなし。
+[build]
+paths_exclude_pattern = [
+  "__pycache__/",
+  "/tests/",
+  "/.pytest_cache/",
+]
