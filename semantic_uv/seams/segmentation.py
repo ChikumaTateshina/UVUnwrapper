@@ -41,6 +41,11 @@ class _Regions:
         return n / ln if ln > 0 else n
 
     def merged_cone(self, ra: int, rb: int) -> float:
+        # 面積0の面 (法線なし) だけの領域は向きを持たないので、相手のコーンのまま統合できる
+        if np.linalg.norm(self.nsum[ra]) == 0:
+            return self.cone[rb]
+        if np.linalg.norm(self.nsum[rb]) == 0:
+            return self.cone[ra]
         na, nb = self.avg(ra), self.avg(rb)
         s = self.nsum[ra] + self.nsum[rb]
         ln = np.linalg.norm(s)

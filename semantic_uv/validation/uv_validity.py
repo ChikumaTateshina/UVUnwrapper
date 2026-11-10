@@ -77,13 +77,17 @@ def validate_uv(objects: Sequence[ObjectData], topos: Dict[str, Topology],
             # 退化 (スケール相対)
             world = topo.world_tri_areas()[isl.tri_ids]
             wsum = float(world.sum()) or 1.0
-            degenerate = (np.abs(sa) <= 1e-12 * max(tot, 1e-30)) & (world > 1e-9 * wsum)
-            if tot <= 0 or degenerate.any():
+            # 3D で面積0の三角形は向き・退化の判定対象外
+            solid = (world > 1e-9 * wsum) & (world > topo.solid_threshold())
+            degenerate = (np.abs(sa) <= 1e-12 * max(tot, 1e-30)) & solid
+            if (tot <= 0 and solid.any()) or degenerate.any():
                 fl = [int(topo.tri_face[isl.tri_ids[i]]) for i in np.nonzero(degenerate)[0][:10]] or isl.faces[:5]
                 rep.error(ErrorCode.VALIDATION_FAILED, "退化したUV三角形があります", stage=stage,
                           targets=[Target(obj.key, face=f) for f in fl],
                           advice="未選択部分の場合は該当面を選択に追加してください" if not isl.touches_writable else "")
-            pos, neg = sa > 0, sa < 0
+            pos, neg = (sa > 0) & solid, (sa < 0) & solid
+            major = -1.0 if neg.sum() > pos.sum() else 1.0
+            flipped_zero = bool(np.any(~solid & (sa * major < 0)))
             if pos.any() and neg.any():
                 fl = sorted(set(int(topo.tri_face[isl.tri_ids[i]]) for i in np.nonzero(neg if neg.sum() < pos.sum() else pos)[0][:10]))
                 rep.error(ErrorCode.VALIDATION_FAILED, "島内で向きが不整合です (反転面)", stage=stage,
@@ -101,7 +105,8 @@ def validate_uv(objects: Sequence[ObjectData], topos: Dict[str, Topology],
                 rep.error(ErrorCode.VALIDATION_FAILED, "タイル端の余白が不足しています", stage=stage,
                           targets=[Target(obj.key, face=isl.faces[0])])
             isl_tris[ii] = tris
-            mixed[ii] = bool(pos.any() and neg.any())
+            # 面積0の面が裏返っている島は境界単純性の前提が崩れるため厳密判定に回す
+            mixed[ii] = bool(pos.any() and neg.any()) or flipped_zero
     if not island_list:
         return rep
     # 島内の自己重複 (向きが揃っていれば境界の単純性で判定)

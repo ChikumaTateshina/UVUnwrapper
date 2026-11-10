@@ -60,7 +60,10 @@ def verify_hard_constraints(obj: ObjectData, topo: Topology, plan: ObjectPlan,
         if not violated:
             continue
         a, b = obj.edges[e]
-        kind = "REQUIRE/保護シーム" if e in rc.must_cut else "FORBID"
+        if e in rc.topology_cuts:
+            kind = "非多様体・向き不整合エッジの分割"
+        else:
+            kind = "REQUIRE/保護シーム" if e in rc.must_cut else "FORBID"
         if fs[0] in wf or fs[1] in wf:
             rep.error(ErrorCode.CONSTRAINT_CONFLICT, f"{kind} 制約に違反しています", stage=stage,
                       targets=[Target(obj.key, edge=(int(a), int(b)))])

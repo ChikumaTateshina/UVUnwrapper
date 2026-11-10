@@ -421,9 +421,17 @@ def T306_invalid_inputs_stop():
     bpy.context.scene.collection.objects.link(ob)
     select(ob)
     before = uv_state(ob)
+    bpy.context.scene.suo_settings.topology_policy = "STOP"
     r = op("generate")
     assert "CANCELLED" in r and any("非多様体" in m for m in Session.messages), Session.messages
     assert same_state(before, uv_state(ob))
+    # 既定 (SPLIT) では問題エッジで UV を分割して続行し、メッシュは変更しない
+    bpy.context.scene.suo_settings.topology_policy = "SPLIT"
+    generate()
+    assert any("非多様体" in m for m in Session.messages), Session.messages
+    apply()
+    assert result_layer(ob) is not None
+    assert len(me.polygons) == 3 and len(me.vertices) == 5
 
 
 @test

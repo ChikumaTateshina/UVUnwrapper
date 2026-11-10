@@ -14,6 +14,10 @@ import numpy as np
 from ..analysis.topology import Topology, weld_groups
 from ..core.settings import UnwrapBackend
 from ..validation.injectivity import island_self_overlap
+from ..validation.overlaps import find_overlaps
+
+# Chart 全体の面積に対しこの比率以下の三角形は「3D で面積0」とみなす
+SOLID_REL = 1e-9
 from . import backend as be
 from .distortion import tri_metrics
 
@@ -55,22 +59,31 @@ def evaluate_chart(topo: Topology, faces: Sequence[int], loop_uv: np.ndarray,
     wa = float(m.world_area.sum())
     signed = m.uv_signed_area
     ua = float(np.abs(signed).sum())
-    if ua <= 0 or wa <= 0:
+    if wa <= topo.solid_threshold():
+        # 3D で面積0の面だけの Chart: テクスチャに現れないため有限なら有効
+        return True, "", 0.0, 0.0, 0.0, wa, ua
+    if ua <= 0:
         return False, "退化したChart", 1, 1, 1, wa, ua
     k = ua / wa
-    # 退化 (スケール相対)
+    # 退化 (スケール相対)。3D で面積0の三角形は向き・退化の判定対象外。
+    solid = (m.world_area > SOLID_REL * wa) & (m.world_area > topo.solid_threshold())
     deg = np.abs(signed) <= 1e-12 * ua + 0.0
-    pos = signed > 0
-    neg = signed < 0
+    pos = (signed > 0) & solid
+    neg = (signed < 0) & solid
     if require_positive:
-        if np.any(~pos & (m.world_area > 0)):
+        if np.any(solid & ~pos):
             return False, "反転または退化した三角形", 1, 1, 1, wa, ua
     else:
         if pos.any() and neg.any():
             return False, "向きが不整合 (折り返し)", 1, 1, 1, wa, ua
-    if np.any(deg & (m.world_area > 1e-12 * wa)):
+    if np.any(deg & solid):
         return False, "退化したUV三角形", 1, 1, 1, wa, ua
-    if island_self_overlap(uvt):   # 向きが揃っている前提の境界単純性判定
+    major = 1.0 if not neg.any() else -1.0
+    if np.any(~solid & (signed * major < 0)):
+        # 面積0の面が裏返っている場合は境界単純性の前提が崩れるため厳密判定
+        if find_overlaps(uvt[solid | (signed * major < 0)], max_pairs=1):
+            return False, "Chart内の自己重複", 1, 1, 1, wa, ua
+    elif island_self_overlap(uvt):   # 向きが揃っている前提の境界単純性判定
         return False, "Chart内の自己重複", 1, 1, 1, wa, ua
     ad = m.angle_distortion
     weights = m.world_area / wa

@@ -25,6 +25,7 @@ class ResolvedConstraints:
     must_cut: Set[int] = field(default_factory=set)      # ハード: 必ず切断
     must_join: Set[int] = field(default_factory=set)     # ハード: 切断禁止
     protected_seams: Set[int] = field(default_factory=set)  # PROTECT 由来 (must_cut に含む)
+    topology_cuts: Set[int] = field(default_factory=set)    # 非多様体・向き不整合 (must_cut に含む)
     soft_bias: np.ndarray = None                          # (E,) +で切りやすく, -で切りにくく
 
 

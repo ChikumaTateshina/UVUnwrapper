@@ -6,7 +6,8 @@ from bpy.props import (BoolProperty, EnumProperty, FloatProperty, IntProperty,
                        PointerProperty, StringProperty)
 
 from ..core.settings import (BoundaryMode, DensityMode, Preset, Scope, SearchBudget, SeamMode,
-                             Settings, SharedMeshPolicy, TileMode, UnwrapBackend, UVMode)
+                             Settings, SharedMeshPolicy, TileMode, TopologyPolicy, UnwrapBackend,
+                             UVMode)
 
 
 class SUO_Settings(bpy.types.PropertyGroup):
@@ -51,6 +52,9 @@ class SUO_Settings(bpy.types.PropertyGroup):
     time_limit: FloatProperty(name="時間上限 (秒)", default=120.0, min=1.0)
     allow_single_user: BoolProperty(name="共有Meshの独立化を許可", default=False,
                                     description="複数Objectで共有されたMeshを確定時に独立化します")
+    topology_policy: EnumProperty(name="トポロジー問題", items=[
+        ("SPLIT", "分割して続行", "非多様体・向き不整合のエッジでUVを分割し、面積0の面は判定から除外して続行 (メッシュは変更しません)"),
+        ("STOP", "停止", "問題箇所を報告して停止")], default="SPLIT")
     show_preview: BoolProperty(name="プレビュー表示", default=True)
 
 
@@ -83,7 +87,8 @@ def to_settings(context) -> Settings:
                             time_limit_s=p.time_limit),
         shared_mesh_policy=SharedMeshPolicy.MAKE_SINGLE_USER if p.allow_single_user else SharedMeshPolicy.STOP,
         backend=UnwrapBackend(p.backend), chart_angle_limit_deg=p.angle_limit,
-        distortion_limit=p.distortion_limit, input_uv=tuple(sorted(input_uv)))
+        distortion_limit=p.distortion_limit, input_uv=tuple(sorted(input_uv)),
+        topology_policy=TopologyPolicy(p.topology_policy))
 
 
 classes = (SUO_Settings,)

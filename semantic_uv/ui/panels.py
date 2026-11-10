@@ -41,6 +41,7 @@ def _draw(layout, context):
         if p.boundary_mode == "RELOCATE_SELECTED":
             box.label(text="未選択側固定、選択側は境界分離", icon="INFO")
     box.prop(p, "seam_mode")
+    box.prop(p, "topology_policy")
     box.prop(p, "backend")
     box.prop(p, "preset")
 

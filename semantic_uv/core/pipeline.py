@@ -43,7 +43,7 @@ from ..validation.uv_validity import validate_uv
 from .errors import ErrorCode, SUOError, Target, ValidationReport
 from .models import (EdgeFeatures, FullScope, InputSnapshot, LayoutDomain, ObjectData,
                      ObjectPlan, ObstacleSet, PartialScope, ResultPlan, UVGroup, UVIsland)
-from .settings import (DensityMode, Scope, Settings, SharedMeshPolicy, UVMode,
+from .settings import (DensityMode, TopologyPolicy, Scope, Settings, SharedMeshPolicy, UVMode,
                        validate_settings)
 
 ProgressIter = Generator[Tuple[float, str], None, ResultPlan]
@@ -73,6 +73,17 @@ def analyze(snapshot: InputSnapshot, settings: Settings) -> Analysis:
         topo = Topology(obj)
         topos[obj.key] = topo
         rc = resolve_constraints(obj, topo, settings.seam_mode, rep)
+        if settings.topology_policy == TopologyPolicy.SPLIT:
+            # 非多様体・向き不整合エッジは UV 上で必ず分割する (メッシュは変更しない)
+            for e in nonmanifold_edges(topo):
+                if e in rc.must_join:
+                    rep.error(ErrorCode.CONSTRAINT_CONFLICT,
+                              "FORBID が非多様体または向きが不整合なエッジに指定されています",
+                              stage="constraints",
+                              targets=[Target(obj.key, edge=(int(obj.edges[e][0]), int(obj.edges[e][1])))])
+                else:
+                    rc.must_cut.add(e)
+                    rc.topology_cuts.add(e)
         rcs[obj.key] = rc
         feats[obj.key] = compute_edge_features(obj, topo, rc)
     a = Analysis(topos, rcs, feats, rep)
@@ -136,16 +147,24 @@ def validate_input(snapshot: InputSnapshot, settings: Settings) -> ValidationRep
             continue
         nm = [e for e in nonmanifold_edges(topo)
               if any(f in region for f in topo.edge_faces[e])]
+        strict = settings.topology_policy == TopologyPolicy.STOP
+        report = rep.error if strict else rep.warn
         if nm:
-            rep.error(ErrorCode.INVALID_INPUT, "非多様体または向きが不整合なエッジがあります",
-                      stage="input",
-                      targets=[Target(obj.key, edge=(int(obj.edges[e][0]), int(obj.edges[e][1]))) for e in nm[:10]],
-                      advice="トポロジーを修正してから実行してください (自動修復は行いません)")
+            report(ErrorCode.INVALID_INPUT,
+                   f"非多様体または向きが不整合なエッジが {len(nm)} 本あります"
+                   + ("" if strict else " (UV をそこで分割して続行します。メッシュは変更しません)"),
+                   stage="input",
+                   targets=[Target(obj.key, edge=(int(obj.edges[e][0]), int(obj.edges[e][1]))) for e in nm[:10]],
+                   advice="トポロジーを修正してから実行してください (自動修復は行いません)" if strict else
+                   "法線の統一や内部面の削除で改善できます")
         dg = [f for f in degenerate_faces(topo) if f in region]
         if dg:
-            rep.error(ErrorCode.INVALID_INPUT, "退化した面があります", stage="input",
-                      targets=[Target(obj.key, face=f) for f in dg[:10]],
-                      advice="面積0の面や重複頂点を修正してください (自動修復は行いません)")
+            report(ErrorCode.INVALID_INPUT,
+                   f"退化した面 (面積0・重複頂点) が {len(dg)} 枚あります"
+                   + ("" if strict else " (向き・退化の判定から除外して続行します)"),
+                   stage="input", targets=[Target(obj.key, face=f) for f in dg[:10]],
+                   advice="面積0の面や重複頂点を修正してください (自動修復は行いません)" if strict else
+                   "「距離でマージ」等で解消できます")
     return rep
 
 

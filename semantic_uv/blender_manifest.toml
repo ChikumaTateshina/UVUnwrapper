@@ -1,7 +1,7 @@
 schema_version = "1.0.0"
 
 id = "semantic_uv_organizer"
-version = "0.1.0"
+version = "0.1.1"
 name = "Semantic UV Organizer"
 tagline = "Rule-based UV unwrapping and readable layout without ML"
 maintainer = "tateshinachikuma"

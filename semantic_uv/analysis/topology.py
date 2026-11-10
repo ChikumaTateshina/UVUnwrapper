@@ -66,12 +66,20 @@ class Topology:
         return len(self.edge_faces[e]) == 1
 
     def world_tri_areas(self) -> np.ndarray:
+        cached = getattr(self, "_tri_areas", None)
+        if cached is not None:
+            return cached
         if len(self.tris) == 0:
             return np.zeros(0)
         w = self.obj.world_co()
         v = self.obj.loop_vert[self.tris]
         a, b, c = w[v[:, 0]], w[v[:, 1]], w[v[:, 2]]
-        return 0.5 * np.linalg.norm(np.cross(b - a, c - a), axis=1)
+        self._tri_areas = 0.5 * np.linalg.norm(np.cross(b - a, c - a), axis=1)
+        return self._tri_areas
+
+    def solid_threshold(self) -> float:
+        """Object 全体の面積に対し、これ以下の三角形は「3D で面積0」とみなす。"""
+        return 1e-12 * float(self.world_tri_areas().sum())
 
     def world_face_areas(self) -> np.ndarray:
         areas = np.zeros(self.obj.n_faces)

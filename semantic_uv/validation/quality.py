@@ -72,8 +72,10 @@ def compute_quality(objects: Sequence[ObjectData], topos: Dict[str, Topology],
             ang_sum += float((ad * m.world_area).sum())
             area_sum += float((ar * m.world_area).sum())
             w_sum += wa
-            max_ang = max(max_ang, float(ad.max()))
-            max_area = max(max_area, float(ar.max()))
+            solid = m.world_area > max(topo.solid_threshold(), 1e-9 * wa)   # 面積0の面は最大値に含めない
+            if solid.any():
+                max_ang = max(max_ang, float(ad[solid].max()))
+                max_area = max(max_area, float(ar[solid].max()))
             cen = uv[tris].reshape(-1, 2).mean(axis=0)
             island_info.append((obj.key, comp[0], k, wa, cen))
             loops = tris.reshape(-1)

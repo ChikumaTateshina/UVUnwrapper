@@ -45,6 +45,14 @@ class SharedMeshPolicy(str, Enum):
     MAKE_SINGLE_USER = "MAKE_SINGLE_USER"
 
 
+class TopologyPolicy(str, Enum):
+    """非多様体・向き不整合エッジと退化面の扱い。メッシュはどちらでも変更しない。
+    SPLIT: 問題エッジで UV を強制分割し、退化面は向き・退化の判定から除外して警告。
+    STOP : 問題箇所を報告して停止 (設計仕様 R-007 の厳密な動作)。"""
+    SPLIT = "SPLIT"
+    STOP = "STOP"
+
+
 class UnwrapBackend(str, Enum):
     """BLENDER_* は作業コピー上で bpy.ops.uv.unwrap を使う。
     Blender外 (単体テスト) や境界固定時は内蔵LSCMを使う。"""
@@ -107,6 +115,7 @@ class Settings:
     preset: Preset = Preset.BALANCED
     search: SearchBudget = field(default_factory=SearchBudget)
     shared_mesh_policy: SharedMeshPolicy = SharedMeshPolicy.STOP
+    topology_policy: TopologyPolicy = TopologyPolicy.SPLIT
     backend: UnwrapBackend = UnwrapBackend.BLENDER_ANGLE_BASED
     # シーム生成の閾値 (度)。Chartの法線コーン半角。
     chart_angle_limit_deg: float = 66.0

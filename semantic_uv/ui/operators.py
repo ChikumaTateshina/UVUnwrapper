@@ -103,6 +103,7 @@ class SUO_OT_generate(bpy.types.Operator):
                     ob.update_from_editmode()
             bpy.ops.object.mode_set(mode="OBJECT")
         settings, snapshot, scope, domain, rep = _prepare(context)
+        self._input_warnings = [i.describe() for i in rep.warnings]
         Session.clear()
         Session.state = TxState.COMPUTING
         Session.cancel_requested = False
@@ -129,6 +130,7 @@ class SUO_OT_generate(bpy.types.Operator):
                 lines.append(f"密度達成: {'可' if ps['density_achieved'] else '不可'} "
                              f"(最大偏差 {ps['density_deviation_max'] * 100:.1f}%)")
         lines += ["注記: " + n for n in plan.notes] + ["警告: " + w for w in plan.warnings]
+        lines += ["警告: " + w for w in getattr(self, "_input_warnings", [])]
         lines += [i.describe() for i in vr.warnings]
         Session.set_messages(lines)
 
