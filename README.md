@@ -71,3 +71,7 @@ blender --background --factory-startup --python semantic_uv/tests/blender_integr
 # ベンチマーク
 blender --background --factory-startup --python semantic_uv/tests/benchmarks/bench.py -- bench.json "0x1,2x1,0x10"
 ```
+
+## ライセンス
+
+GNU General Public License v3.0 or later（[LICENSE](LICENSE)）。
